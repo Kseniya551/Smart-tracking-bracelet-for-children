@@ -1,0 +1,105 @@
+#include <WiFi.h>    //מגדירים ספריה
+#include <HTTPClient.h>  //מגדירים ספריה
+#include <SoftwareSerial.h>   //מגדירים ספריה
+#include <ESP32Servo.h>    //מגדירים ספריה
+unsigned long lastTime = 0;   //מגדירים משתנה ששווה ל0
+unsigned long timerDelay = 5000;  //מגדירים משתנה ששווה ל5000
+
+int i = 0;    //מגדירים משתנה ששווה ל0
+int RFIDFlag=0; //מגדירים משתנה ששווה ל0
+Servo ServoMotor;   // מגדרים את "השם" של הסרוו
+SoftwareSerial RfidReader(5, 4);  //RFID מגדירים את הפינים של ה
+
+int num=0;  //מגדירים משתנה ששווה ל0
+int count = 0;  //מגדירים משתנה ששווה ל0
+String RFIDCode = "";   //מגדירים משתנה ריק
+
+const char* ssid = "Wifi";   //מגדירים משתנה עם ערך 
+const char* password = "12345678";  //מגדירים משתנה עם ערך
+
+String serverName = "https://transferrable-shirt.000webhostapp.com/try.php";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+String money = "https://transferrable-shirt.000webhostapp.com/money.php";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+
+void setup() {  
+  Serial.begin(9600);  //מגדירים את המסך הסריאלי 
+  RfidReader.begin(9600);   //RFID מגדירים את הקריאה של ה
+  WiFi.begin(ssid, password); // מחברים את הבקר לאינטרנט 
+  Serial.println("Connecting"); // מדפיסים הודעה מתאימה במסך הסריאלי
+  while (WiFi.status() != WL_CONNECTED) {    
+//לולאה שמתקיימת כל עוד לא הבקר לא התחבר לאינטרנט
+    delay(500);   //השהייה של חצי שניה
+    Serial.print("."); //מדפיסים במסך הסריאלי נקודה
+  }
+  Serial.println("");   //יורדים שורה במסך הסריאלי
+  Serial.print("Connected to WiFi network with IP Address: "); //מדפיסים הודעה מתאימה
+  Serial.println(WiFi.localIP());   //מדפיסים במסך הסריאלי את הכתובת שאליה התחברנו לאינטרנט
+
+  Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading."); //מדפיסים הודעה מתאימה למסך הסריאלי
+}
+void loop() {
+  
+  while(RfidReader.available()) {     //RFIDלולאה שמתקיימת כל עוד נקלט מידע מה
+    num = RfidReader.read();   //מכניסים את המידע שנקלטת למשתנה
+    Serial.print(count++);   //מדפיסים במסך הסריאלי את המיקום של המספר
+    Serial.print("->"); //מדפיסים במסך הסריאלי חץ
+    Serial.println(num, DEC);  //מדפיסים על המסך הסריאלי את הסיפרה שהתקבל
+    RFIDCode += (String)num;  //מכניסים למשתנה את כל המספר שהתקבל
+    if(count == 14) {  //תנאי שמתקיים אם המשתנה שווה ל14
+      RFIDFlag=1;  // מכניסים למשתנה את המספר 1
+      count = 0;  //מאפסים את המשתנה
+      Serial.println("\n\rRFIDCode: " + RFIDCode + "\r\n");  
+//מדפיסים במסך הסריאלי הודעה מתאימה עם המידע
+      RfidReader.end();  //RFIDמסיימים את הקריאה של ה
+      delay(1000);  //השהייה של שניה
+      RfidReader.begin(9600);  //RFID מגדירים את הקריאה של ה
+      delay(1000);
+    }
+  }
+
+  if(RFIDFlag==1) {  //תנאי שמתקיים אם המשתנה שווה ל1
+    
+    if(WiFi.status() == WL_CONNECTED) {  //תנאי שמתקיים אם הבקר מחובר לאינטרנט
+      HTTPClient http;   //
+
+      String serverPath = serverName + "?num="+RFIDCode +"&stand=2" ;  
+//מכניסים למשתנה את הכתובת אינטרנט עם המידע שאנחנו רוצים להעביר
+      Serial.println("Accessing host: " + serverPath); // מדפיסים במסך הסראילי את הכתובת 
+      RFIDCode = "";  //מאפסים את המשתנה
+      RFIDFlag=0;  //מאפסים את המשתנה
+
+     
+      http.begin(serverPath.c_str());   //פונים לכתובת אינטרנט
+      int httpResponseCode = http.GET();  //קולטים את המידע שהתקבל מהאתר
+
+      if(httpResponseCode > 0) {  //תנאי שמתקיים אם התקבל מידע מאתר
+        Serial.print("HTTP Response code: ");  //מדפיסים הודעות מתאימות
+        Serial.println(httpResponseCode);
+        String payload = http.getString();
+        Serial.println(payload);
+       servo();
+      }
+      else{  //במידה ולא התקבל מידע 
+        Serial.print("Error code: ");  //מדפיסים הודעה מתאימה
+        Serial.println(httpResponseCode);
+      }
+      http.end();  
+    }
+    else {
+      Serial.println("WiFi Disconnected"); //מדפיסים הודעה מתאימה
+    }
+    lastTime = millis();
+  }
+}
+
+void servo(){
+     ServoMotor.attach(13); //מנוע סרבו מחובר לפין 13
+
+  ServoMotor.write(180); //המנוע מסתובב 180 מעלות
+      delay(1000);   // הפעולה מתבצעת למשך 1 שניות
+      ServoMotor.write(90); // המנוע מסתובב לתנוחה התחלתית שהיה נמצא בה 
+      delay(1000); // הפעולה מתבצעת למשך 1 שניות
+      ServoMotor.detach();
+
+  }
