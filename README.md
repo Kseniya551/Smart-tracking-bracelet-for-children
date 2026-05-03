@@ -1,7 +1,7 @@
 # Smart-tracking-bracelet-for-children
 פרוייקט סיום של הנדסאי.
 הפרוייקט התבצע בזוגות.
-מצורפת חוברת של הפרוייקט.
+מצורפת חוברת של הפרוייקט(חוברת יד.PDF).
 
 Arduino codes:
 Final code of "cafeteria",Final code of "GameRoom", First Bracelet code, Second Bracelet code, find lcd id.
