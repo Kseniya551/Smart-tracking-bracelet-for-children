@@ -1,0 +1,118 @@
+#include <WiFi.h>	 //מגדירים ספריה
+#include <HTTPClient.h>	 //מגדירים ספריה
+#include <iostream>	 //מגדירים ספריה
+#include <string>	 //מגדירים ספריה
+
+
+int BUTTON = 16; //מגדירים את הפין של הכפתור
+int currentState;  //מגדירים משתנה
+
+const char* ssid = "Wifi";   //מגדירים משתנה עם ערך 
+const char* password = "12345678";  //מגדירים משתנה עם ערך
+
+String serverName = "https://transferrable-shirt.000webhostapp.com/parentCall2.txt";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+String callparent = "https://transferrable-shirt.000webhostapp.com/childcall2.php";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+String clearparent= "https://transferrable-shirt.000webhostapp.com/clearcall2.php";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+
+unsigned long lastTime = 0;		//מגדירים משתנה ששווה ל0
+unsigned long timerDelay = 5000;	//מגדירים משתנה ששווה ל5000
+
+
+int clear1=0;  //מגדירים משתנה ששווה ל0
+int num = 0;  //מגדירים משתנה ששווה ל0
+
+int motorPin = 4;   //מגדירים את הפין של המנוע רטט
+
+void setup() {
+
+  pinMode(BUTTON, INPUT_PULLUP);  //מגדירים את הכפתור כקלט
+  Serial.begin(9600);
+
+
+  pinMode(motorPin, OUTPUT);  //מגדירים את מנוע הרטט כפלט
+
+  WiFi.begin(ssid, password); // מחברים את הבקר לאינטרנט 
+  Serial.println("Connecting"); // מדפיסים הודעה מתאימה במסך הסריאלי
+  while (WiFi.status() != WL_CONNECTED) {    
+//לולאה שמתקיימת כל עוד לא הבקר לא התחבר לאינטרנט
+    delay(500);   //השהייה של חצי שניה
+    Serial.print("."); //מדפיסים במסך הסריאלי נקודה
+  }
+  Serial.println("");   //יורדים שורה במסך הסריאלי
+  Serial.print("Connected to WiFi network with IP Address: "); //מדפיסים הודעה מתאימה
+  Serial.println(WiFi.localIP());   //מדפיסים במסך הסריאלי את הכתובת שאליה התחברנו לאינטרנט
+
+  Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading."); //מדפיסים הודעה מתאימה למסך הסריאלי
+
+
+
+}
+
+
+void loop() {
+
+  int httpResponseCode;
+
+  if (WiFi.status() == WL_CONNECTED) { //תנאי שמתקיים אם הבקר מחובר לאינטרנט
+    HTTPClient http;
+    String serverPath = callparent + "?mun=1";
+//מכניסים למשתנה את הכתובת אינטרנט עם המידע שאנחנו רוצים להעביר
+    if (digitalRead(BUTTON) == HIGH) { //תנאי שמתקיים אם לוחצים על הכפתור
+      delay(100); //השהייה של עשירית השניה
+
+       http.begin(serverPath.c_str());   //פונים לכתובת אינטרנט
+      int httpResponseCode = http.GET();  //קולטים את המידע שהתקבל מהאתר
+      Serial.println("Accessing host: " + serverPath); //מדפיסים הודעה מתאימה למסך הסריאלי
+
+     
+      while (digitalRead(BUTTON) == HIGH);  //לולאה שמתקיימת כל עוד לוחצים על הכפתור
+    }
+
+    Serial.println("Accessing host: " + serverName); //מדפיסים הודעה מתאימה
+
+    http.begin(serverPath.c_str());   //פונים לכתובת אינטרנט
+     int httpResponseCode = http.GET();  //קולטים את המידע שהתקבל מהאתר
+
+     if (httpResponseCode > 0) {  //תנאי שמתקיים אם התקבל מידע מאתר
+        Serial.print("HTTP Response code: ");  //מדפיסים הודעות מתאימות
+        Serial.println(httpResponseCode);
+        String payload = http.getString();
+        Serial.println(payload);
+        num = payload.toInt();  //integerמכניסים למשתנה את מה שקלטנו ומעבירים את המידע ל
+        Serial.println(num); //מדפיסים את המידע
+
+
+      if(num == 1) {  //תנאי שמתקיים אם המשתנה שווה ל1
+        for (int i = 0; i < 5; i++) {  //לולאה שעוברים עליה 5 פעמים
+
+          digitalWrite(motorPin, HIGH); //מפעילים את המנוע רטט
+          delay(5000);   //למשך של 5 שניות
+          digitalWrite(motorPin, LOW); //מכבים את המנוע רטט
+          delay(1000); //למשך של שניה
+
+        }
+        String parentclear = clearparent + "?clear1=0";
+//מכניסים למשתנה את הכתובת אינטרנט עם המידע שאנחנו רוצים להעביר
+            http.begin(serverPath.c_str());   //פונים לכתובת אינטרנט
+      int httpResponseCode = http.GET();  //קולטים את המידע שהתקבל מהאתר
+      Serial.println("Accessing host: " + parentclear); //מדפיסים הודעה מתאימה למסך הסריאלי
+
+      }
+    }
+    else {  //במידה ולא התקבל מידע 
+        Serial.print("Error code: ");  //מדפיסים הודעה מתאימה
+        Serial.println(httpResponseCode);
+
+    }
+
+    http.end();
+  }
+  else {
+    Serial.println("WiFi Disconnected"); //מדפיסים הודעה מתאימה
+  }
+  lastTime = millis();
+
+}
