@@ -1,0 +1,324 @@
+#include <WiFi.h>    //מגדירים ספריה
+#include <HTTPClient.h>  //מגדירים ספריה
+#include <SoftwareSerial.h>   //מגדירים ספריה
+#include <LiquidCrystal_I2C.h>  //מגדירים ספריה
+
+LiquidCrystal_I2C lcd(0x27,16,2);    //LCD מגדירים את החיבור של ה
+
+#define score 15   //מגדירים משתנה שערכו 15
+const int button1 = 34;          //מגדירים את הפינים של כפתור 1
+const int button2 = 32;           //מגדירים את הפינים של כפתור 2
+const int button3 = 26;           //מגדירים את הפינים של כפתור 3
+const int button4 = 14;          //מגדירים את הפינים של כפתור 4
+const int led1 = 13;            //מגדירים את הפינים של לד 1
+const int led2 = 33;           //מגדירים את הפינים של לד 2
+const int led3 = 27;            //מגדירים את הפינים של לד 3
+const int led4 = 12;     //מגדירים את הפינים של לד 4
+
+
+int randomans=0;   //מגדירים משתנה שערכו 0
+String listnums="";  //מגדירים “רשימה” ריקה 
+int ans=0; //מגדירים משתנה שערכו 0
+
+int i3=0;  //מגדירים משתנה שערכו 0
+int i2=0; //מגדירים משתנה שערכו 0
+
+unsigned long lastTime = 0;   //מגדירים משתנה ששווה ל0
+unsigned long timerDelay = 5000;  //מגדירים משתנה ששווה ל5000
+
+int i = 0;    //מגדירים משתנה ששווה ל0
+int RFIDFlag=0; //מגדירים משתנה ששווה ל0
+
+
+
+SoftwareSerial RfidReader(5, 4);  //RFID מגדירים את הפינים של ה
+
+int num=0;  //מגדירים משתנה ששווה ל0
+int count = 0;  //מגדירים משתנה ששווה ל0
+String RFIDCode = "";   //מגדירים משתנה ריק
+
+
+const char* ssid = "Wifi";   //מגדירים משתנה עם ערך 
+const char* password = "12345678";  //מגדירים משתנה עם ערך
+
+
+String serverName = "https://transferrable-shirt.000webhostapp.com/try.php";  
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+String money = "https://transferrable-shirt.000webhostapp.com/tr4.txt";
+//מגדירים משתנה שבו נמצא הכתובת שאליה אנחנו פונים
+
+void setup() {  
+  Serial.begin(9600);  //מגדירים את המסך הסריאלי 
+  RfidReader.begin(9600);   //RFID מגדירים את הקריאה של ה
+  WiFi.begin(ssid, password); // מחברים את הבקר לאינטרנט 
+  Serial.println("Connecting"); // מדפיסים הודעה מתאימה במסך הסריאלי
+  while (WiFi.status() != WL_CONNECTED) {    
+//לולאה שמתקיימת כל עוד לא הבקר לא התחבר לאינטרנט
+    delay(500);   //השהייה של חצי שניה
+    Serial.print("."); //מדפיסים במסך הסריאלי נקודה
+  }
+  Serial.println("");   //יורדים שורה במסך הסריאלי
+  Serial.print("Connected to WiFi network with IP Address: "); //מדפיסים הודעה מתאימה
+  Serial.println(WiFi.localIP());   //מדפיסים במסך הסריאלי את הכתובת שאליה התחברנו לאינטרנט
+
+  Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading."); //מדפיסים הודעה מתאימה למסך הסריאלי
+
+
+lcd.init();  
+  lcd.clear();         // LCDמנקים את כל מה שכתוב על ה
+  lcd.backlight();  //LCDמדליקים את האור האחורי של ה
+
+  pinMode(button1, INPUT);    //מגדירים את הכפתור ה1 בתור קלט
+  pinMode(button2, INPUT); //מגדירים את הכפתור ה2 בתור קלט
+  pinMode(button3, INPUT); //מגדירים את הכפתור ה3 בתור קלט
+  pinMode(button4, INPUT); //מגדירים את הכפתור ה4 בתור קלט
+
+  pinMode(led1, OUTPUT);  //מגדירים את הלד ה1 בתור פלט
+  pinMode(led2, OUTPUT);  //מגדירים את הלד ה2 בתור פלט
+  pinMode(led3, OUTPUT); //מגדירים את הלד ה3 בתור פלט
+  pinMode(led4, OUTPUT); //מגדירים את הלד ה4 בתור פלט
+
+  
+}
+
+void loop() {
+
+   lcd.setCursor(0,0);  //LCDמגדירים את המיקום של הכתיבה ב
+         lcd.print("to start the ");//LCDמדפיסים את המידע על ה
+         lcd.setCursor(0,1);  //LCDמגדירים את המיקום של הכתיבה ב
+         lcd.print("game pass chip ");//LCDמדפיסים את המידע על ה
+        delay(2000);//השהייה של 2 שניות
+        lcd.clear(); //LCDמנקים את כל מה שכתוב על מסך ה//RFIDלולאה שמתקיימת כל עוד נקלט מידע מה
+  while (RfidReader.available()) {
+        
+    num = RfidReader.read();   //מכניסים את המידע שנקלטת למשתנה
+    Serial.print(count++);   //מדפיסים במסך הסריאלי את המיקום של המספר
+    Serial.print("->"); //מדפיסים במסך הסריאלי חץ
+    Serial.println(num, DEC);  //מדפיסים על המסך הסריאלי את הסיפרה שהתקבל
+    RFIDCode += (String)num;  //מכניסים למשתנה את כל המספר שהתקבל
+    if (count == 14) {  //תנאי שמתקיים אם המשתנה שווה ל14
+      RFIDFlag=1;  // מכניסים למשתנה את המספר 1
+      count = 0;  //מאפסים את המשתנה
+      Serial.println("\n\rRFIDCode: " + RFIDCode + "\r\n");  
+//מדפיסים במסך הסריאלי הודעה מתאימה עם המידע
+      RfidReader.end();  //RFIDמסיימים את הקריאה של ה
+      delay(1000);  //השהייה של שניה
+      RfidReader.begin(9600);  //RFID מגדירים את הקריאה של ה
+    }
+  }
+
+  if(RFIDFlag==1) {  //תנאי שמתקיים אם המשתנה שווה ל1
+    
+    if (WiFi.status() == WL_CONNECTED) {  //תנאי שמתקיים אם הבקר מחובר לאינטרנט
+      HTTPClient http;   
+
+      String serverPath = serverName + "?num="+RFIDCode +"&stand=1" ;  
+//מכניסים למשתנה את הכתובת אינטרנט עם המידע שאנחנו רוצים להעביר
+      Serial.println("Accessing host: " + serverPath); // מדפיסים במסך הסראילי את הכתובת 
+      RFIDCode = "";  //מאפסים את המשתנה
+      RFIDFlag=0;  //מאפסים את המשתנה
+
+
+
+
+      http.begin(serverPath.c_str());   //פונים לכתובת אינטרנט
+      int httpResponseCode = http.GET();  //קולטים את המידע שהתקבל מהאתר
+
+      if (httpResponseCode > 0) {  //תנאי שמתקיים אם התקבל מידע מאתר
+        Serial.print("HTTP Response code: ");  //מדפיסים הודעות מתאימות
+        Serial.println(httpResponseCode);
+        String payload = http.getString();
+        Serial.println(payload);
+
+
+
+     game();
+        
+  
+      }
+
+
+      else {  //במידה ולא התקבל מידע 
+        Serial.print("Error code: ");  //מדפיסים הודעה מתאימה
+        Serial.println(httpResponseCode);
+      }
+
+      http.end();  
+    }
+    else {
+      Serial.println("WiFi Disconnected"); //מדפיסים הודעה מתאימה
+    }
+    lastTime = millis();
+  }
+
+}
+
+
+void game(){
+  bool startgame=true;
+    int ans2[score];  //מגדירים משתנה עם 15 ערכים
+    int str[score];  //מגדירים משתנה עם 15 ערכים
+        delay(1000); //עושים השהייה של שניה
+        lcd.setCursor(0,0);  //LCDמגדירים את המיקום של הכתיבה ב
+         lcd.print("the game started");//LCDמדפיסים את המידע על ה
+        delay(2000);//השהייה של 2 שניות
+        lcd.clear(); //LCDמנקים את כל מה שכתוב על מסך ה
+
+  while(startgame==true){  //תנאי שמתקיים כל הזמן עד שתיהיה פקודת יציאה 
+    int randomans = ran();   //פונים ל
+    listnums+=String(randomans);
+         count++;
+         str[i]=randomans;
+         i++;
+  Serial.println(listnums);    
+  Serial.println(randomans );
+ Serial.println(listnums.length() );
+    for(int j=0;j<listnums.length();j++){   
+    if(str[j]==1){
+       digitalWrite(led1, HIGH);   //מדליקים את הלד
+       delay(2000);   //למשך של 2 שניות
+       digitalWrite(led1, LOW);  //מכבים את הלד
+       delay(2000);  //למשך של 2 שניות
+       ans=1;
+      
+     }
+   else if(str[j]==2){
+      digitalWrite(led2, HIGH);
+      delay(2000);
+      digitalWrite(led2, LOW);
+      delay(2000);
+      ans=2;
+   
+     
+
+      }
+   else if(str[j]==3){
+      digitalWrite(led3, HIGH);
+      delay(2000);
+      digitalWrite(led3, LOW);
+      delay(2000);
+      ans=3;
+    
+    
+      }
+   else if(str[j]==4){
+      digitalWrite(led4, HIGH);
+      delay(2000);
+      digitalWrite(led4, LOW);
+      delay(2000);
+      ans=4;
+ 
+    }
+    ans2[i2]=ans;
+         i2++;
+    }
+     for(int k=0;k<listnums.length();k++){
+      lcd.setCursor(0,0);
+        lcd.print("start push ");
+       lcd.setCursor(0,1);
+        lcd.print("the button");
+         delay(2000);
+       lcd.clear();
+       delay(2000);
+        int continuegame = check(ans2[k]);
+       if(continuegame == 1){
+         lcd.setCursor(0,0);
+       lcd.print("good job");
+       continuegame=0;
+        }
+        else{
+
+          for(int p=0;p<score;p++){
+            ans2[p]=0;
+            str[p]=0;
+            }
+  
+    listnums="";
+    
+    
+    lcd.setCursor(0,0);
+       lcd.print("you lost");
+        delay(2000);
+   lcd.clear();
+       
+    i=0;
+    i2=0;
+    startgame=false;
+    break;
+  }}}
+  
+  }
+
+
+
+int ran(){
+  int ans=0;
+ int  randomNumber=random(1,5);
+  if(randomNumber==1){
+    ans=1;}
+  else if(randomNumber==2){
+    ans=2;}
+  else if(randomNumber==3){
+    ans=3;}
+   else if(randomNumber==4){
+    ans=4;}
+    return ans;
+}
+
+
+int check(int ans){
+  int continuegame= 0;    
+      if(ans==1){
+        delay(4000);
+      if(digitalRead(button1) == HIGH){
+        continuegame=1;
+
+          lcd.setCursor(0,0);
+       lcd.print("you can stop");
+       lcd.setCursor(0,1);
+        lcd.print("push the button");
+         delay(2000);
+   lcd.clear();
+        delay(3000);
+    }}
+      else if(ans==2){
+       delay(4000);
+     if(digitalRead(button2) == HIGH){
+      continuegame=1;     
+          lcd.setCursor(0,0);
+       lcd.print("you can stop");
+       lcd.setCursor(0,1);
+        lcd.print("push the button");
+         delay(2000);
+   lcd.clear();
+      delay(3000);
+      }}
+     else if(ans==3){
+     delay(4000);
+      if(digitalRead(button3) == HIGH){
+        continuegame=1;
+                  lcd.setCursor(0,0);
+       lcd.print("you can stop");
+       lcd.setCursor(0,1);
+        lcd.print("push the button");
+         delay(2000);
+   lcd.clear();
+        delay(3000);
+       
+      } }
+     else if(ans==4){
+     delay(4000);
+      if(digitalRead(button4) == HIGH){
+        continuegame=1;
+                lcd.setCursor(0,0);
+       lcd.print("you can stop");
+       lcd.setCursor(0,1);
+        lcd.print("push the button");
+         delay(2000);
+   lcd.clear();
+        delay(3000);
+       }}
+      
+      
+       return continuegame;
+}
